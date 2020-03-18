@@ -3,7 +3,7 @@ from datetime import datetime
 import re
 import meraki
 
-# takes Meraki API Key and Org ID and pulls settings per network, writing them to csv for human review.
+# using the Meraki python library, takes Meraki API Key and Org ID and pulls settings per network, writing them to csv for human review.
 
 # Either input your API key below , or leave API_KEY blank and
 # set an environment variable (preferred) to define your API key. The former is insecure and not recommended.
