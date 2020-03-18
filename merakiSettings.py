@@ -3,6 +3,7 @@ from datetime import datetime
 import re
 import meraki
 
+# takes Meraki API Key and Org ID and pulls settings per network, writing them to csv for human review.
 
 # Either input your API key below , or leave API_KEY blank and
 # set an environment variable (preferred) to define your API key. The former is insecure and not recommended.
@@ -13,7 +14,7 @@ API_KEY = ''
 # the tag organizations.getOrganization() will create a list object with org data. pull the org_id value from the
 # 'id' key of the desired org.
 # Eventually this will loop thru all orgs or will find the org_id based on org name command line argument.
-org_id = '25998'
+org_id = ''
 
 def getSsidHeader(dashboard, networks):
     ssidHeader = []
