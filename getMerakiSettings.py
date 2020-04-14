@@ -4,7 +4,8 @@ import re
 import meraki
 import json
 
-# Uses the Meraki python library to create objects containing configuration settings.
+# Uses the Meraki python library (https://github.com/meraki/dashboard-api-python) 
+# to create objects containing configuration settings.
 # Settings per network are written to csv files for review by a human at a later time.
 # The intent is to provide a mechanism to confirm the accuracy of settings across
 # networks and prevent drift.
@@ -13,9 +14,6 @@ import json
 # Script uses a key file to inject the Meraki API key. You can also set an
 # environment variable 'MERAKI_DASHBOARD_API_KEY' to define your API key as
 # well as copy it directly into the script although that is not encouraged.
-
-# More info on the Meraki python library
-# https://github.com/meraki/dashboard-api-python
 
 # Creates the csv header for SSID settings. My use of DictWriter writeheader and writerow methods
 # requires I have all possible setting names in my header otherwise I risk errors.
