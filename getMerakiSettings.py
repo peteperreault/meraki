@@ -2,27 +2,30 @@ import csv
 from datetime import datetime
 import re
 import meraki
+import json
 
-# using the Meraki python library, takes Meraki API Key and Org ID and pulls settings per network, writing them to csv for human review.
+# Uses the Meraki python library to create objects containing configuration settings.
+# Settings per network are written to csv files for review by a human at a later time.
+# The intent is to provide a mechanism to confirm the accuracy of settings across
+# networks and prevent drift.
 
-# Either input your API key below , or leave API_KEY blank and
-# set an environment variable (preferred) to define your API key. The former is insecure and not recommended.
-# For example, in Linux/macOS:  export MERAKI_DASHBOARD_API_KEY=093b24e85df15a3e66f1fc359f4c48493eaa1b73
-# the key above is used for the Meraki read only sandbox
-API_KEY = ''
+# Note on the API key
+# Script uses a key file to inject the Meraki API key. You can also set an
+# environment variable 'MERAKI_DASHBOARD_API_KEY' to define your API key as
+# well as copy it directly into the script although that is not encouraged.
+# Meraki read only sandbox  API_KEY=193b24e85df15a3e66f1fc359f4c48493eaa1b92
 
-# the tag organizations.getOrganization() will create a list object with org data. pull the org_id value from the
-# 'id' key of the desired org.
-# Eventually this will loop thru all orgs or will find the org_id based on org name command line argument.
-org_id = ''
-
+# Creates the csv header for SSID settings. My use of DictWriter writeheader and writerow methods
+# requires I have all possible setting names in my header otherwise I risk errors.
 def getSsidHeader(dashboard, networks):
     ssidHeader = []
     # all possible ssid settings
     header = ['name', 'enabled', 'splashPage', 'ssidAdminAccessible', 'adminSplashUrl', 'splashTimeout',
               'walledGardenEnabled','authMode', 'psk', 'encryptionMode', 'wpaEncryptionMode', 'ipAssignmentMode',
               'useVlanTagging', 'defaultVlanId', 'minBitrate', 'bandSelection', 'perClientBandwidthLimitUp',
-              'perClientBandwidthLimitDown', 'lanIsolationEnabled']
+              'perClientBandwidthLimitDown', 'lanIsolationEnabled', 'availableOnAllAps', 'availabilityTags', 'visible',
+              'apTagsAndVlanIds', 'radiusFailoverPolicy', 'radiusAttributeForGroupPolicies', 'radiusOverride',
+              'radiusServers', 'radiusAccountingEnabled', 'radiusLoadBalancingPolicy', 'radiusCoaEnabled']
     x = range(1,16)
     # csv writeheader requires unique column names. hack to create those unique names
     # from the list 'header' above by appending a value from range 'x' to the list element.
@@ -33,13 +36,45 @@ def getSsidHeader(dashboard, networks):
     return (ssidHeader)
 
 def main():
+    # Parse API credentials
+    key_file_path = 'key_file.txt'
+    key_file = open(key_file_path, 'r')
+    key_file_text = key_file.read()
+
+    key_file_json = json.loads(key_file_text)
+    API_KEY = key_file_json['meraki_api_key']
+
     # Instantiate a Meraki dashboard API session
     dashboard = meraki.DashboardAPI(api_key=API_KEY, base_url='https://api.meraki.com/api/v0/',
                                    log_file_prefix=__file__[:-3], print_console=False)
+
+    # Get list of organizations
+    orgs = dashboard.organizations.getOrganizations()
+    # orgs is a list of dict elements, unpack it into a dict of key value pairs
+    org_dict = {}
+    for org in orgs:
+        org_dict.update({org['name']: org['id']})
+
+    # Select Org. Ask for user input, check to see if org exists and if not provide a list of acceptable names.
+    while True:
+        org_name = input("Enter organization name: ")
+        if not org_name in org_dict:
+            print("That doesn't seem right. I'm expecting one of the following names.")
+            print(*list(org_dict.keys()), sep='\n')
+            print("\n")
+            continue
+        else:
+            print("Thank you, one moment please.")
+            org_id = org_dict[org_name]
+            break
+
+    # Get networks for org
     networks = dashboard.networks.getOrganizationNetworks(org_id)
 
     # create mx settings doc
-    with open(f'mx_settings.csv', mode='w', newline='\n') as mx_output:
+    # eventually would like the creation of the file to come after the check in productTypes
+    # to prevent empty files.
+    with open(f'{org_name}_mx_settings.csv', mode='w', newline='\n') as mx_output:
         # set csv field names, aka column headers
         field_names = ['site', 'productTypes', 'defaultRulesEnabled', 'rules', 'iMode', 'idsRulesets', 'malMode', 'allowedUrls', 'allowedFiles', 'urlCategoryListSize', 'blockedUrlPatterns', 'allowedUrlPatterns', 'blockedUrlCategories']
 
@@ -86,7 +121,7 @@ def main():
     mx_output.closed
 
     # Firewall
-    with open(f'fwl_settings.csv', mode='w', newline='\n') as fwl_output:
+    with open(f'{org_name}_fwl_settings.csv', mode='w', newline='\n') as fwl_output:
         field_names2 = ['site', 'productTypes', 'comment', 'policy', 'protocol', 'srcPort', 'srcCidr', 'destPort',
                         'destCidr', 'syslogEnabled']
         writer2 = csv.DictWriter(fwl_output, fieldnames=field_names2)
@@ -109,7 +144,7 @@ def main():
     fwl_output.closed
 
     # SSID settings
-    with open(f'ssid_settings.csv', mode='w', newline='\n') as output_ssid:
+    with open(f'{org_name}_ssid_settings.csv', mode='w', newline='\n') as output_ssid:
         # generate header
         fieldnameSsid = getSsidHeader(dashboard, networks)
 
@@ -124,7 +159,7 @@ def main():
                 ssidSettings = {'site': net['name']}
 
                 for ssid in ssids:
-                    # want the value for use later but not the key/value pair
+                    # get the value for use later and remove the key/value pair.
                     num = ssid.pop('number')
 
                     for key in ssid:
