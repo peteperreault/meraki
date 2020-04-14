@@ -13,7 +13,9 @@ import json
 # Script uses a key file to inject the Meraki API key. You can also set an
 # environment variable 'MERAKI_DASHBOARD_API_KEY' to define your API key as
 # well as copy it directly into the script although that is not encouraged.
-# Meraki read only sandbox  API_KEY=193b24e85df15a3e66f1fc359f4c48493eaa1b92
+
+# More info on the Meraki python library
+# https://github.com/meraki/dashboard-api-python
 
 # Creates the csv header for SSID settings. My use of DictWriter writeheader and writerow methods
 # requires I have all possible setting names in my header otherwise I risk errors.
